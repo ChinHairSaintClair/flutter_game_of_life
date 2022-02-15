@@ -2,6 +2,7 @@ import 'dart:math';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:game_of_life/value_slider_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'game_constants.dart';
@@ -19,16 +20,15 @@ class _GameState extends State<Game> {
   bool _isRunning = false;
   List<List<bool>> _tracker = _generateList();
 
-  static const int _milliseconds = DEFAULT_TICK_INTERVAL;
-  static const int _gridSize = DEFAULT_GRID_SIZE;
+  static int _milliseconds = DEFAULT_TICK_INTERVAL;
+  static int _gridSize = DEFAULT_GRID_SIZE;
 
-  Stream _stream = Stream.periodic(const Duration(milliseconds: _milliseconds));
+  Stream _stream = _createStream();
   late StreamSubscription _periodicSub;
 
   @override
   void initState() {
-    _periodicSub = _stream.listen(
-        (_) => _isRunning ? _buildNextIteration() : print('empty tick'));
+    _periodicSub = _createStreamSubscription();
     super.initState();
   }
 
@@ -157,8 +157,8 @@ class _GameState extends State<Game> {
           children: [
             const Text(TICK_DESCRIPTION_HEADER),
             OutlinedButton(
-              child: const Text('${_milliseconds / 1000} $TICK_MEASUREMENT'),
-              onPressed: () => _setGenerationInterval(),
+              child: Text('${_milliseconds / 1000} $TICK_MEASUREMENT'),
+              onPressed: _isRunning ? null : () => _setGenerationInterval(),
             ),
           ],
         ),
@@ -167,8 +167,8 @@ class _GameState extends State<Game> {
           children: [
             const Text(GRID_SIZE_DESCRIPTION_HEADER),
             OutlinedButton(
-              child: const Text('$_gridSize x $_gridSize $GRID_MEASUREMENT'),
-              onPressed: () => _setGridSize(),
+              child: Text('$_gridSize x $_gridSize $GRID_MEASUREMENT'),
+              onPressed: _isRunning ? null : () => _setGridSize(),
             ),
           ],
         ),
@@ -198,6 +198,15 @@ class _GameState extends State<Game> {
   static List<List<bool>> _generateList() {
     return List.generate(_gridSize,
         (index) => List.generate(_gridSize, (i) => Random().nextBool()));
+  }
+
+  static Stream _createStream() {
+    return Stream.periodic(Duration(milliseconds: _milliseconds));
+  }
+
+  StreamSubscription _createStreamSubscription() {
+    return _stream.listen(
+        (_) => _isRunning ? _buildNextIteration() : print('empty tick'));
   }
 
   _manuallyToggleBlockState(int x, y) {
@@ -294,12 +303,52 @@ class _GameState extends State<Game> {
     });
   }
 
-  _setGenerationInterval() {
-    // TODO:
+  _setGenerationInterval() async {
+    var data = await showDialog(
+      context: context,
+      builder: (ctx) => ValueSliderDialog(
+        title: TICK_DESCRIPTION_HEADER,
+        minValue: MIN_TICK_INTERVAL,
+        startValue: _milliseconds,
+        maxValue: MAX_TICK_INTERVAL,
+        cancelText: CANCEL,
+        acceptText: ACCEPT,
+      ),
+    );
+
+    if (data == null) {
+      return;
+    }
+
+    setState(() {
+      _milliseconds = data;
+      _periodicSub.cancel();
+      _stream = _createStream();
+      _periodicSub = _createStreamSubscription();
+    });
   }
 
-  _setGridSize() {
-    // TODO:
+  _setGridSize() async {
+    var data = await showDialog(
+      context: context,
+      builder: (ctx) => ValueSliderDialog(
+        title: GRID_SIZE_DESCRIPTION_HEADER,
+        minValue: MIN_GRID_SIZE,
+        startValue: _gridSize,
+        maxValue: MAX_GRID_SIZE,
+        cancelText: CANCEL,
+        acceptText: ACCEPT,
+      ),
+    );
+
+    if (data == null) {
+      return;
+    }
+
+    setState(() {
+      _gridSize = data;
+      _tracker = _generateList();
+    });
   }
 
   @override
