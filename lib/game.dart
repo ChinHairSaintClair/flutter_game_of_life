@@ -187,11 +187,13 @@ class _GameState extends State<Game> {
   }
 
   _openWikiLink() async {
-    if (await canLaunch(GAME_OF_LIFE_URL)) {
-      await launch(GAME_OF_LIFE_URL);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('$UNABLE_TO_LAUNCH_URL $GAME_OF_LIFE_URL')));
+    try{
+      var _url = GAME_OF_LIFE_URL;
+      if (!await launch(_url)) throw '$UNABLE_TO_LAUNCH_URL $_url';
+    }
+    catch(e){
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(e.toString())));
     }
   }
 
